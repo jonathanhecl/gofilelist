@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-func TestFileList_New(t *testing.T) {
+func Test_New(t *testing.T) {
 	f := New()
 	if f == nil {
 		t.Error("FileList is nil")
@@ -17,13 +17,20 @@ func TestFileList_New(t *testing.T) {
 	if len(f.items) != 1 {
 		t.Error("FileList.items is not 1")
 	}
+
+	if !f.Changed() {
+		t.Error("FileList.Changed() is false")
+	}
 }
 
-func TestFileList_Save(t *testing.T) {
+func Test_Save(t *testing.T) {
 	f := New()
 	f.Add("test", "")
 	f.AddOnce("test", "")
 	f.Add("test2", "comment")
+
+	f.Add("test3", "")
+	f.Remove("test3")
 
 	err := f.Save("test.txt")
 	if err != nil {
@@ -31,7 +38,7 @@ func TestFileList_Save(t *testing.T) {
 	}
 }
 
-func TestFileList_Load(t *testing.T) {
+func Test_Load(t *testing.T) {
 	f, err := Load("test.txt")
 	if err != nil {
 		t.Error(err)

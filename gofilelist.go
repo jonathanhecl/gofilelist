@@ -6,6 +6,7 @@ import (
 	"os"
 	"runtime"
 	"strings"
+	"time"
 )
 
 /*
@@ -28,11 +29,21 @@ type Item struct {
 }
 
 type FileList struct {
-	items []Item
+	items        []Item
+	lastModified time.Time
+	changed      bool
 }
 
 func New() *FileList {
-	return &FileList{}
+	return &FileList{lastModified: time.Now(), changed: true}
+}
+
+func (f *FileList) LastModified() time.Time {
+	return f.lastModified
+}
+
+func (f *FileList) Changed() bool {
+	return f.changed
 }
 
 func Load(filename string) (*FileList, error) {
@@ -47,6 +58,8 @@ func Load(filename string) (*FileList, error) {
 			f.items = append(f.items, item)
 		}
 	}
+
+	f.changed = false
 	return f, nil
 }
 
@@ -101,7 +114,10 @@ func (f *FileList) Save(filename string) error {
 				panic(err)
 			}
 		}
+
+		f.changed = false
 	}
+
 	return nil
 }
 
@@ -147,6 +163,8 @@ func readFile(filename string) ([]string, error) {
 
 func (f *FileList) SetItems(items []Item) {
 	f.items = items
+	f.lastModified = time.Now()
+	f.changed = true
 }
 
 func (f *FileList) GetItems() []Item {
@@ -195,21 +213,29 @@ func (f *FileList) AddOnce(value string, comment string) {
 		if v.Value == value {
 			if v.Comment != comment {
 				v.Comment = comment
+				f.lastModified = time.Now()
+				f.changed = true
 			}
 			return
 		}
 	}
 	f.items = append(f.items, Item{Value: value, Comment: comment})
+	f.lastModified = time.Now()
+	f.changed = true
 }
 
 func (f *FileList) Add(value string, comment string) {
 	f.items = append(f.items, Item{Value: value, Comment: comment})
+	f.lastModified = time.Now()
+	f.changed = true
 }
 
 func (f *FileList) Remove(item string) {
 	for i, v := range f.items {
 		if v.Value == item {
 			f.items = append(f.items[:i], f.items[i+1:]...)
+			f.lastModified = time.Now()
+			f.changed = true
 			return
 		}
 	}

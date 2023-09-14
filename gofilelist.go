@@ -38,6 +38,10 @@ func New() *FileList {
 	return &FileList{lastModified: time.Now(), changed: true}
 }
 
+func (f *FileList) Count() int {
+	return len(f.items)
+}
+
 func (f *FileList) LastModified() time.Time {
 	return f.lastModified
 }

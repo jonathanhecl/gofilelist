@@ -19,8 +19,10 @@ import (
  */
 
 const (
-	IsWindows    = runtime.GOOS == "windows"
-	CommentStyle = "//"
+	IsWindows        = runtime.GOOS == "windows"
+	CommentStyle     = "//"
+	LineBreak        = "\r"
+	LineBreakWindows = "\r\n"
 )
 
 type Item struct {
@@ -32,10 +34,15 @@ type FileList struct {
 	items        []Item
 	lastModified time.Time
 	changed      bool
+	itemMap      map[string]struct{}
 }
 
 func New() *FileList {
-	return &FileList{lastModified: time.Now(), changed: true}
+	return &FileList{
+		lastModified: time.Now(),
+		changed:      true,
+		itemMap:      make(map[string]struct{}),
+	}
 }
 
 func (f *FileList) Count() int {
@@ -106,16 +113,16 @@ func (f *FileList) Save(filename string) error {
 	} else {
 		defer file.Close()
 
-		lineBreak := "\r"
+		lineBreak := LineBreak
 		if IsWindows {
-			lineBreak = "\r\n"
+			lineBreak = LineBreakWindows
 		}
 
 		for i := range f.items {
 			line := makeLine(f.items[i]) + lineBreak
 
 			if _, err := file.Write([]byte(line)); err != nil {
-				panic(err)
+				return err
 			}
 		}
 
@@ -204,32 +211,33 @@ func (f *FileList) GetAllWithComment(comment string) []Item {
 }
 
 func (f *FileList) Exists(value string) bool {
-	for _, v := range f.items {
-		if v.Value == value {
-			return true
-		}
-	}
-	return false
+	_, exists := f.itemMap[value]
+	return exists
 }
 
 func (f *FileList) AddOnce(value string, comment string) {
-	for _, v := range f.items {
-		if v.Value == value {
-			if v.Comment != comment {
-				v.Comment = comment
-				f.lastModified = time.Now()
-				f.changed = true
+	if _, exists := f.itemMap[value]; exists {
+		for i, v := range f.items {
+			if v.Value == value {
+				if v.Comment != comment {
+					f.items[i].Comment = comment
+					f.lastModified = time.Now()
+					f.changed = true
+				}
+				return
 			}
-			return
 		}
+	} else {
+		f.items = append(f.items, Item{Value: value, Comment: comment})
+		f.itemMap[value] = struct{}{}
+		f.lastModified = time.Now()
+		f.changed = true
 	}
-	f.items = append(f.items, Item{Value: value, Comment: comment})
-	f.lastModified = time.Now()
-	f.changed = true
 }
 
 func (f *FileList) Add(value string, comment string) {
 	f.items = append(f.items, Item{Value: value, Comment: comment})
+	f.itemMap[value] = struct{}{}
 	f.lastModified = time.Now()
 	f.changed = true
 }
@@ -238,6 +246,7 @@ func (f *FileList) Remove(item string) {
 	for i, v := range f.items {
 		if v.Value == item {
 			f.items = append(f.items[:i], f.items[i+1:]...)
+			delete(f.itemMap, item)
 			f.lastModified = time.Now()
 			f.changed = true
 			return

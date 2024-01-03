@@ -35,13 +35,20 @@ type FileList struct {
 	lastModified time.Time
 	changed      bool
 	itemMap      map[string]struct{}
+	lineBreak    string
 }
 
 func New() *FileList {
+	lb := LineBreak
+	if IsWindows {
+		lb = LineBreakWindows
+	}
+
 	return &FileList{
 		lastModified: time.Now(),
 		changed:      true,
 		itemMap:      make(map[string]struct{}),
+		lineBreak:    lb,
 	}
 }
 
@@ -108,26 +115,26 @@ func makeLine(item Item) string {
 }
 
 func (f *FileList) Save(filename string) error {
-	if file, err := os.Create(filename); err != nil {
-		return err
-	} else {
-		defer file.Close()
+	file, err := os.Create(filename)
 
-		lineBreak := LineBreak
-		if IsWindows {
-			lineBreak = LineBreakWindows
-		}
-
-		for i := range f.items {
-			line := makeLine(f.items[i]) + lineBreak
-
-			if _, err := file.Write([]byte(line)); err != nil {
-				return err
-			}
-		}
-
-		f.changed = false
+	if err != nil {
+		return fmt.Errorf("failed to create file: %s", err)
 	}
+	defer file.Close()
+
+	return f.SaveToWriter(file)
+}
+
+func (f *FileList) SaveToWriter(w io.Writer) error {
+	for i := range f.items {
+		line := makeLine(f.items[i]) + f.lineBreak
+
+		if _, err := w.Write([]byte(line)); err != nil {
+			return fmt.Errorf("failed to write line: %w", err)
+		}
+	}
+
+	f.changed = false
 
 	return nil
 }
